@@ -1,4 +1,4 @@
-package jenkins.plugins.openstack.compute;uto-merging pom.xml
+package jenkins.plugins.openstack.compute;
 
 
 import java.io.IOException;
