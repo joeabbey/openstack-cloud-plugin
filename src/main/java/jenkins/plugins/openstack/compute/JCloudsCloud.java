@@ -1,4 +1,5 @@
-package jenkins.plugins.openstack.compute;
+package jenkins.plugins.openstack.compute;uto-merging pom.xml
+
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -24,8 +25,6 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
-import hudson.Functions;
-import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
@@ -67,9 +66,12 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     private static final Logger LOGGER = Logger.getLogger(JCloudsCloud.class.getName());
 
-    public final @Nonnull String endPointUrl;
     public final @Nonnull String identity;
     public final @Nonnull Secret credential;
+    public final @Nonnull String endPointUrl;
+    public final @Nonnull String project;
+    public final String domain;
+    public final String region;
     public final String zone;
 
     private final @Nonnull List<JCloudsSlaveTemplate> templates;
@@ -138,15 +140,22 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
     }
 
     @DataBoundConstructor @Restricted(DoNotUse.class)
-    public JCloudsCloud(
-            final String name, final String identity, final String credential, final String endPointUrl, final String zone,
-            final SlaveOptions slaveOptions,
-            final List<JCloudsSlaveTemplate> templates
-    ) {
+    public JCloudsCloud(final String name, final String identity, final String credential, final String endPointUrl,
+                        final String project, final String domain, final int instanceCap, final int retentionTime,
+                        final int startTimeout, final SlaveOptions slaveOptions,
+                        final List<JCloudsSlaveTemplate> templates, final boolean floatingIps,
+                        final String region, String zone) {
         super(Util.fixEmptyAndTrim(name));
         this.endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
         this.identity = Util.fixEmptyAndTrim(identity);
         this.credential = Secret.fromString(credential);
+        this.project = Util.fixEmptyAndTrim(project);
+        this.domain = Util.fixEmptyAndTrim(domain);
+        this.instanceCap = instanceCap;
+        this.retentionTime = retentionTime;
+        this.startTimeout = startTimeout;
+        this.floatingIps = floatingIps;
+        this.region = region;
         this.zone = Util.fixEmptyAndTrim(zone);
 
         this.slaveOptions = slaveOptions.eraseDefaults(DescriptorImpl.DEFAULTS);
@@ -190,6 +199,21 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
     public @Nonnull SlaveOptions getRawSlaveOptions() {
         return slaveOptions;
+    }
+    @Restricted(NoExternalUse.class)
+    public static @Nonnull Openstack getOpenstack(String endPointUrl, String identity, String credential, String project, String domain, String region) throws FormValidation {
+        endPointUrl = Util.fixEmptyAndTrim(endPointUrl);
+        identity = Util.fixEmptyAndTrim(identity);
+        credential = Util.fixEmptyAndTrim(credential);
+        project = Util.fixEmptyAndTrim(project);
+        domain = Util.fixEmptyAndTrim(domain);
+        region = Util.fixEmptyAndTrim(region);
+
+        if (endPointUrl == null || identity == null || credential == null || project == null || domain == null) {
+            throw FormValidation.error("Invalid parameters");
+        }
+
+        return new Openstack(endPointUrl, identity, Secret.fromString(credential), project, domain, region);
     }
 
     public @Nonnull List<JCloudsSlaveTemplate> getTemplates() {
@@ -454,7 +478,7 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
      */
     @Restricted(DoNotUse.class)
     public @Nonnull Openstack getOpenstack() {
-        return new Openstack(endPointUrl, identity, credential, zone);
+        return new Openstack(endPointUrl, identity, credential, project, domain, region);
     }
 
     @Extension
@@ -483,16 +507,19 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         @Restricted(DoNotUse.class)
         public FormValidation doTestConnection(
-                @QueryParameter String zone,
                 @QueryParameter String endPointUrl,
                 @QueryParameter String identity,
-                @QueryParameter String credential
-        ) {
+                @QueryParameter String credential,
+                @QueryParameter String project,
+                @QueryParameter String domain,
+                @QueryParameter String region,
+                @QueryParameter String zone) {
             try {
-                Throwable ex = Openstack.Factory.get(endPointUrl, identity, credential, zone).sanityCheck();
+                Throwable ex = Openstack.Factory.get(endPointUrl, identity, credential, project, domain, region, zone).sanityCheck();
                 if (ex != null) {
                     return FormValidation.warning(ex, "Connection not validated, plugin might not operate correctly: " + ex.getMessage());
                 }
+
             } catch (FormValidation ex) {
                 return ex;
             } catch (Exception ex) {
@@ -525,6 +552,21 @@ public class JCloudsCloud extends Cloud implements SlaveOptions.Holder {
 
         public ProvisioningFailedException(String msg) {
             super(msg);
+        }
+
+        public FormValidation doCheckEndPointUrl(@QueryParameter String value) {
+            if (!value.isEmpty() && !value.startsWith("http")) {
+                return FormValidation.error("The endpoint must be an URL");
+            }
+            return FormValidation.validateRequired(value);
+        }
+
+        public FormValidation doCheckProject(@QueryParameter String value) {
+            return FormValidation.validateRequired(value);
+        }
+
+        public FormValidation doCheckDomain(@QueryParameter String value) {
+            return FormValidation.validateRequired(value);
         }
     }
 }

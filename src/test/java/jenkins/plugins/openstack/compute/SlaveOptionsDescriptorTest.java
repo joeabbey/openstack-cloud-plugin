@@ -137,7 +137,7 @@ public class SlaveOptionsDescriptorTest {
         Openstack os = j.fakeOpenstackFactory();
         doReturn(Collections.singletonList(image)).when(os).getSortedImages();
 
-        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "");
+        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "", "", "", "", "", "", "", "", "", "", "");
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
         assertEquals("image-name", item.name);
@@ -157,7 +157,7 @@ public class SlaveOptionsDescriptorTest {
 
         j.fakeOpenstackFactory(new Openstack(osClient));
 
-        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "");
+        ListBoxModel list = d.doFillImageIdItems("not-needed", "", "", "", "", "", "", "", "", "", "", "", "", "", "");
         assertThat(list.get(0).name, list, Matchers.<ListBoxModel.Option>iterableWithSize(2));
         assertEquals(2, list.size());
         ListBoxModel.Option item = list.get(1);
