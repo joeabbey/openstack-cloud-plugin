@@ -205,12 +205,12 @@ public class SlaveOptionsDescriptorTest {
         assertThat(fillUrl, startsWith(contextPath));
         fillUrl = fillUrl.substring(contextPath.length());
 
-        Openstack.FactoryEP factory = j.mockOpenstackFactory();
-        when(
-                factory.getOpenstack(anyString(), anyString(), anyString(), anyString())
-        ).thenThrow(
-                new AuthenticationException("Noone cares as we are testing if correct credentials are passed in", 42)
-        );
+        //Openstack.FactoryEP factory = j.mockOpenstackFactory();
+        //when(
+        //        //factory.getOpenstack(anyString(), anyString(), anyString(), anyString())
+        //).thenThrow(
+        //        new AuthenticationException("Noone cares as we are testing if correct credentials are passed in", 42)
+        //);
 
         j.createWebClient().goTo(fillUrl + QUERY_STRING, "application/json");
 
