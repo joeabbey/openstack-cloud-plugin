@@ -163,13 +163,19 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     @InjectOsAuth
     public ListBoxModel doFillFloatingIpPoolItems(
             @QueryParameter String floatingIpPool,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+            @RelativePath("..") @QueryParameter String project, @RelativePath("../..") @QueryParameter("project") String pr,
+            @RelativePath("..") @QueryParameter String domain, @RelativePath("../..") @QueryParameter("domain") String d,
+            @RelativePath("..") @QueryParameter String region, @RelativePath("../..") @QueryParameter("region") String r,
+            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
     ) {
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
 
         try {
-            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, project, domain, region, zone);
             for (String p : openstack.getSortedIpPools()) {
                 m.add(p);
             }
@@ -204,14 +210,20 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     @InjectOsAuth
     public ListBoxModel doFillHardwareIdItems(
             @QueryParameter String hardwareId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+            @RelativePath("..") @QueryParameter String project, @RelativePath("../..") @QueryParameter("project") String pr,
+            @RelativePath("..") @QueryParameter String domain, @RelativePath("../..") @QueryParameter("domain") String d,
+            @RelativePath("..") @QueryParameter String region, @RelativePath("../..") @QueryParameter("region") String r,
+            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
     ) {
 
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
 
         try {
-            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, project, domain, region, zone);
             for (Flavor flavor : openstack.getSortedFlavors()) {
                 m.add(String.format("%s (%s)", flavor.getName(), flavor.getId()), flavor.getId());
             }
@@ -246,14 +258,20 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     @InjectOsAuth
     public ListBoxModel doFillImageIdItems(
             @QueryParameter String imageId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+            @RelativePath("..") @QueryParameter String project, @RelativePath("../..") @QueryParameter("project") String pr,
+            @RelativePath("..") @QueryParameter String domain, @RelativePath("../..") @QueryParameter("domain") String d,
+            @RelativePath("..") @QueryParameter String region, @RelativePath("../..") @QueryParameter("region") String r,
+            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
     ) {
 
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
 
         try {
-            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            final Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, project, domain, region, zone);
             for (Image image : openstack.getSortedImages()) {
                 String name = image.getName();
                   if (Util.fixEmpty(name) == null) {
@@ -292,14 +310,20 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     @InjectOsAuth
     public ListBoxModel doFillNetworkIdItems(
             @QueryParameter String networkId,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+            @RelativePath("..") @QueryParameter String project, @RelativePath("../..") @QueryParameter("project") String pr,
+            @RelativePath("..") @QueryParameter String domain, @RelativePath("../..") @QueryParameter("domain") String d,
+            @RelativePath("..") @QueryParameter String region, @RelativePath("../..") @QueryParameter("region") String r,
+            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
     ) {
 
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
 
         try {
-            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, project, domain, region, zone);
             for (org.openstack4j.model.network.Network network : openstack.getSortedNetworks()) {
                 m.add(String.format("%s (%s)", network.getName(), network.getId()), network.getId());
             }
@@ -448,14 +472,20 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     @InjectOsAuth
     public ListBoxModel doFillKeyPairNameItems(
             @QueryParameter String keyPairName,
-            @QueryParameter String endPointUrl, @QueryParameter String identity, @QueryParameter String credential, @QueryParameter String zone
+            @RelativePath("..") @QueryParameter String endPointUrl, @RelativePath("../..") @QueryParameter("endPointUrl") String e,
+            @RelativePath("..") @QueryParameter String identity, @RelativePath("../..") @QueryParameter("identity") String i,
+            @RelativePath("..") @QueryParameter String credential, @RelativePath("../..") @QueryParameter("credential") String c,
+            @RelativePath("..") @QueryParameter String project, @RelativePath("../..") @QueryParameter("project") String pr,
+            @RelativePath("..") @QueryParameter String domain, @RelativePath("../..") @QueryParameter("domain") String d,
+            @RelativePath("..") @QueryParameter String region, @RelativePath("../..") @QueryParameter("region") String r,
+            @RelativePath("..") @QueryParameter String zone, @RelativePath("../..") @QueryParameter("zone") String z
     ) {
 
         ListBoxModel m = new ListBoxModel();
         m.add("None specified", "");
 
         try {
-            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, zone);
+            Openstack openstack = Openstack.Factory.get(endPointUrl, identity, credential, project, domain, region, zone);
             for (String keyPair: openstack.getSortedKeyPairNames()) {
                 m.add(keyPair);
             }
