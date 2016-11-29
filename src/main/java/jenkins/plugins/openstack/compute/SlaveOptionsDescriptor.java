@@ -92,7 +92,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     }
 
     private SlaveOptions opts() {
-        return ((JCloudsCloud.DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
+        return ((JCloudsCloud.DescriptorImpl) Jenkins.getActiveInstance().getDescriptorOrDie(JCloudsCloud.class)).getDefaultOptions();
     }
 
     private String getDefault(String d1, Object d2) {
@@ -379,7 +379,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
 
     @Restricted(DoNotUse.class)
     public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-        if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getInstance()).hasPermission(Computer.CONFIGURE)) {
+        if (!(context instanceof AccessControlled ? (AccessControlled) context : Jenkins.getActiveInstance()).hasPermission(Computer.CONFIGURE)) {
             return new ListBoxModel();
         }
         List<StandardUsernameCredentials> credentials = CredentialsProvider.lookupCredentials(
@@ -421,7 +421,7 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         return m;
     }
 
-    @Restricted(DoNotUse.class)
+    /*@Restricted(DoNotUse.class)
     public FormValidation doCheckUserDataId(
             @QueryParameter String value,
             @RelativePath("../../slaveOptions") @QueryParameter("userDataId") String def
@@ -429,13 +429,13 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
         if (Util.fixEmpty(value) == null) {
             String d = getDefault(def, opts().getUserDataId());
             if (d != null) {
-                d = getConfigProvider().getConfigById(d).name;
+                d = getConfigProvider().getByIdOrNull(d).name;
                 return FormValidation.ok(def(d));
             }
             return OK;
         }
         return OK;
-    }
+    }*/
 
     private ConfigProvider getConfigProvider() {
         ExtensionList<ConfigProvider> providers = ConfigProvider.all();
@@ -557,7 +557,11 @@ public final class SlaveOptionsDescriptor extends hudson.model.Descriptor<SlaveO
     public void calcFillSettings(String field, Map<String, Object> attributes) {
         super.calcFillSettings(field, attributes);
 
-        List<String> deps = new ArrayList<>(Splitter.on(' ').splitToList((String) attributes.get("fillDependsOn")));
+        List<String> deps = new ArrayList<>();
+        String fillDependsOn = (String) attributes.get("fillDependsOn");
+        if (fillDependsOn != null) {
+            deps.addAll(Arrays.asList(fillDependsOn.split(" ")));
+        }
 
         String capitalizedFieldName = StringUtils.capitalize(field);
         String methodName = "doFill" + capitalizedFieldName + "Items";

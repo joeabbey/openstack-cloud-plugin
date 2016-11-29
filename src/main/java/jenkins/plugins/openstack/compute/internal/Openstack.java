@@ -23,6 +23,8 @@
  */
 package jenkins.plugins.openstack.compute.internal;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -41,10 +43,13 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import com.google.common.base.Objects;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.Util;
+import hudson.remoting.Which;
 import hudson.util.FormValidation;
 import org.apache.commons.lang.ObjectUtils;
 import org.kohsuke.accmod.Restricted;
@@ -72,12 +77,12 @@ import jenkins.model.Jenkins;
 /**
  * Encapsulate {@link OSClient}.
  *
- * The is to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting.
+ * It is needed to make sure the client is truly immutable and provide easy-to-mock abstraction for unittesting
  *
  * For server manipulation, this implementation provides metadata fingerprinting
  * to identify machines started via this plugin from given instance so it will not
  * manipulate servers it does not "own". In other words, pretends that there are no
- * other machines running in connected tenant.
+ * other machines running in connected tenant except for those started using this class.
  *
  * @author ogondza
  */
@@ -109,9 +114,9 @@ public class Openstack {
         return nets;
     }
 
-    public @Nonnull Collection<? extends Image> getSortedImages() {
+    public @Nonnull Collection<Image> getSortedImages() {
         List<? extends Image> images = client.images().listAll();
-        TreeSet set = new TreeSet(RESOURCE_COMPARATOR); // Eliminate duplicate names
+        TreeSet<Image> set = new TreeSet<>(RESOURCE_COMPARATOR); // Eliminate duplicate names
         set.addAll(images);
         return set;
     }
@@ -146,7 +151,7 @@ public class Openstack {
         List<Server> running = new ArrayList<>();
 
         // We need details to inspect state and metadata
-        boolean detailed = true;
+        final boolean detailed = true;
         for (Server n: client.compute().servers().list(detailed)) {
             if (isOccupied(n) && isOurs(n)) {
                 running.add(n);
@@ -208,7 +213,7 @@ public class Openstack {
      * @return Identifier to filter instances we control.
      */
     private @Nonnull String instanceFingerprint() {
-        return Jenkins.getInstance().getRootUrl();
+        return Jenkins.getActiveInstance().getRootUrl();
     }
 
     public @Nonnull Server getServerById(@Nonnull String id) throws NoSuchElementException {
@@ -412,6 +417,7 @@ public class Openstack {
     /**
      * Perform some tests before calling the connection successfully established.
      */
+    @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT")
     public @CheckForNull Throwable sanityCheck() {
         // Try to talk to all endpoints the plugin rely on so we know they exist, are enabled, user have permission to
         // access them and JVM trusts their SSL cert.
@@ -468,6 +474,18 @@ public class Openstack {
             if (credential == null) throw FormValidation.error("No credential specified");
 
             return new Openstack(endPointUrl, identity, Secret.fromString(credential), project, domain, region);
+        }
+    }
+
+    static {
+        // Log where guava is coming from. This can not be reliably tested as jenkins-test-harness, hpi:run and actual
+        // jenkins deployed plugin have different classloader environments. Messing around with maven-hpi-plugin opts can
+        // fix or break any of that and there is no regression test to catch that.
+        try {
+            File path = Which.jarFile(Objects.ToStringHelper.class);
+            LOGGER.info("com.google.common.base.Objects loaded from " + path);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Unable to get source of com.google.common.base.Objects", e);
         }
     }
 }

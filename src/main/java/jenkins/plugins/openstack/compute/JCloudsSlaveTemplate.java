@@ -2,6 +2,7 @@ package jenkins.plugins.openstack.compute;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,6 +13,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import com.google.common.base.Charsets;
 import hudson.remoting.Base64;
 import org.jenkinsci.lib.configprovider.ConfigProvider;
 import org.jenkinsci.lib.configprovider.model.Config;
@@ -38,6 +40,7 @@ import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import jenkins.plugins.openstack.compute.internal.Openstack;
+import jenkins.plugins.openstack.compute.UserDataConfig;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -228,18 +231,18 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
             builder.availabilityZone(az);
         }
 
-        @CheckForNull String userDataText = getUserData();
+        /*@CheckForNull String userDataText = getUserData();
         if (userDataText != null) {
             HashMap<String, String> vars = new HashMap<>();
-            String rootUrl = Jenkins.getInstance().getRootUrl();
+            String rootUrl = Jenkins.getActiveInstance().getRootUrl();
             vars.put("JENKINS_URL", rootUrl);
             vars.put("SLAVE_JAR_URL", rootUrl + "jnlpJars/slave.jar");
             vars.put("SLAVE_JNLP_URL", rootUrl + "computer/" + nodeName + "/slave-agent.jnlp");
             vars.put("SLAVE_LABELS", labelString);
             String content = Util.replaceMacro(userDataText, vars);
             LOGGER.fine("Sending user-data:\n" + content);
-            builder.userData(Base64.encode(content.getBytes()));
-        }
+            builder.userData(Base64.encode(content.getBytes(Charsets.UTF_8)));
+        }*/
 
         final Openstack openstack = cloud.getOpenstack();
         final Server server = openstack.bootAndWaitActive(builder, opts.getStartTimeout());
@@ -276,14 +279,15 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
         }
     }
 
-    /*package for testing*/ @CheckForNull String getUserData() {
-        Config userData = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class).getConfigById(getEffectiveSlaveOptions().getUserDataId());
+    /*package for testing @CheckForNull String getUserData() {
+        UserDataConfig.UserDataConfigProvider ucp = ConfigProvider.all().get(UserDataConfig.UserDataConfigProvider.class);
+        Config userData = ucp.getConfigs().get(getEffectiveSlaveOptions().getUserDataId());
 
         return (userData == null || userData.content.isEmpty())
                 ? null
                 : userData.content
         ;
-    }
+    }*/
 
     /*package for testing*/ List<? extends Server> getRunningNodes() {
         List<Server> tmplt = new ArrayList<>();
@@ -299,7 +303,7 @@ public class JCloudsSlaveTemplate implements Describable<JCloudsSlaveTemplate>, 
     @Override
     @SuppressWarnings("unchecked")
     public Descriptor<JCloudsSlaveTemplate> getDescriptor() {
-        return Jenkins.getInstance().getDescriptor(getClass());
+        return Jenkins.getActiveInstance().getDescriptor(getClass());
     }
 
     @Extension

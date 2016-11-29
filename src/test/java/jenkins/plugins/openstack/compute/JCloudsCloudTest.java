@@ -3,13 +3,16 @@ package jenkins.plugins.openstack.compute;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
+import com.gargoylesoftware.htmlunit.html.HtmlFormUtil;
 import hudson.model.Item;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.security.ACL;
@@ -35,9 +38,11 @@ import hudson.model.Label;
 import hudson.util.FormValidation;
 import jenkins.plugins.openstack.PluginTestRule;
 import jenkins.plugins.openstack.compute.JCloudsCloud.DescriptorImpl;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.kohsuke.stapler.Stapler;
+import org.openstack4j.openstack.compute.domain.NovaServer;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -47,6 +52,13 @@ import java.util.concurrent.Callable;
 public class JCloudsCloudTest {
     @Rule
     public PluginTestRule j = new PluginTestRule();
+
+    @Test @Issue("JENKINS-39282") // The problem does not manifest in jenkins-test-harness - created as a regression test
+    public void guavaLeak() throws Exception {
+        NovaServer server = mock(NovaServer.class, CALLS_REAL_METHODS);
+        server.id = "424242";
+        assertThat(server.toString(), containsString("424242"));
+    }
 
     @Test
     public void failToTestConnection() {
@@ -87,22 +99,29 @@ public class JCloudsCloudTest {
         assertTrue("Cloud Section must be present in the global configuration ", pageText.contains("Cloud"));
 
         final HtmlForm configForm = page.getFormByName("config");
-        final HtmlButton buttonByCaption = configForm.getButtonByCaption("Add a new cloud");
+        final HtmlButton buttonByCaption = HtmlFormUtil.getButtonByCaption(configForm, "Add a new cloud");
         HtmlPage page1 = buttonByCaption.click();
         WebAssert.assertLinkPresentWithText(page1, "Cloud (OpenStack)");
 
         HtmlPage page2 = page.getAnchorByText("Cloud (OpenStack)").click();
+        HtmlForm configForm2 = page2.getFormByName("config");
+        for (int i = 0; i < 10; i++) { // Wait for JS
+            try {
+                HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
+                break;
+            } catch (ElementNotFoundException ex) {
+                Thread.sleep(1000);
+            }
+        }
+
         WebAssert.assertInputPresent(page2, "_.endPointUrl");
         WebAssert.assertInputPresent(page2, "_.identity");
         WebAssert.assertInputPresent(page2, "_.credential");
         WebAssert.assertInputPresent(page2, "_.instanceCap");
         WebAssert.assertInputPresent(page2, "_.retentionTime");
 
-        HtmlForm configForm2 = page2.getFormByName("config");
-        HtmlButton testConnectionButton = configForm2.getButtonByCaption("Test Connection");
-        HtmlButton deleteCloudButton = configForm2.getButtonByCaption("Delete cloud");
-        assertNotNull(testConnectionButton);
-        assertNotNull(deleteCloudButton);
+        HtmlFormUtil.getButtonByCaption(configForm2, "Test Connection");
+        HtmlFormUtil.getButtonByCaption(configForm2, "Delete cloud");
     }
 
     @Test @Ignore("HtmlUnit is not able to trigger form validation")
@@ -187,6 +206,19 @@ public class JCloudsCloudTest {
         assertEquals(original.getRawSlaveOptions(), JCloudsCloud.getByName("openstack").getRawSlaveOptions());
     }
 
+    @Test
+    public void configRoundtripNullZone() throws Exception {
+        JCloudsCloud original = new JCloudsCloud(
+                "openstack", "identity", "credential", "endPointUrl", null,
+                j.dummySlaveOptions(),
+                Collections.<JCloudsSlaveTemplate>emptyList()
+        );
+        j.jenkins.clouds.add(original);
+
+        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+        assertNull(JCloudsCloud.getByName("openstack").zone);
+    }
+
     @Test @LocalData
     public void globalConfigMigrationFromV1() throws Exception {
         JCloudsCloud cloud = (JCloudsCloud) j.jenkins.getCloud("OSCloud");
@@ -244,29 +276,38 @@ public class JCloudsCloudTest {
     }
 
     private JCloudsCloud getCloudWhereUserIsAuthorizedTo(final Permission authorized, final JCloudsSlaveTemplate template) {
-        return j.configureSlaveLaunching(new PluginTestRule.MockJCloudsCloud(template) {
-            @Override public ACL getACL() {
-                return new SidACL() {
-                    @Override protected Boolean hasPermission(Sid p, Permission permission) {
-                        return permission.equals(authorized);
-                    }
-                };
-            }
-        });
+        return j.configureSlaveLaunching(new AclControllingJCloudsCloud(template, authorized));
     }
 
     private static class DoProvision implements Callable<Object> {
-        private final JCloudsCloud jenkinsRead;
+        private final JCloudsCloud cloud;
         private final JCloudsSlaveTemplate template;
 
-        public DoProvision(JCloudsCloud jenkinsRead, JCloudsSlaveTemplate template) {
-            this.jenkinsRead = jenkinsRead;
+        public DoProvision(JCloudsCloud cloud, JCloudsSlaveTemplate template) {
+            this.cloud = cloud;
             this.template = template;
         }
 
         @Override public Object call() throws Exception {
-            jenkinsRead.doProvision(Stapler.getCurrentRequest(), Stapler.getCurrentResponse(), template.name);
+            cloud.doProvision(Stapler.getCurrentRequest(), Stapler.getCurrentResponse(), template.name);
             return null;
+        }
+    }
+
+    private static class AclControllingJCloudsCloud extends PluginTestRule.MockJCloudsCloud {
+        private final Permission authorized;
+
+        public AclControllingJCloudsCloud(JCloudsSlaveTemplate template, Permission authorized) {
+            super(template);
+            this.authorized = authorized;
+        }
+
+        @Override public ACL getACL() {
+            return new SidACL() {
+                @Override protected Boolean hasPermission(Sid p, Permission permission) {
+                    return permission.equals(authorized);
+                }
+            };
         }
     }
 }
